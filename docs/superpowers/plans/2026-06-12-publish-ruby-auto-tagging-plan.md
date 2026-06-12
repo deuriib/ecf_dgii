@@ -1,3 +1,27 @@
+# Auto-Tagging en Workflow de Ruby - Plan de Implementación
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Modificar `.github/workflows/publish-ruby.yml` para soportar triggers de tags, añadir un job intermedio `tag-creation` en pushes a `main`, y actualizar `deploy` para que se ejecute en el tag push.
+
+**Architecture:** 
+1. `push` a `main` -> ejecuta `build` (tests + build) -> ejecuta `tag-creation` (si la versión de `lib/ecf_dgii/version.rb` no tiene tag, lo crea y empuja).
+2. `push` de tag `ruby-v*` -> ejecuta `build` (tests + build) -> ejecuta `deploy` (publica en RubyGems).
+
+**Tech Stack:** GitHub Actions, Git, Ruby.
+
+---
+
+### Task 1: Modificar el archivo de workflow de GitHub Actions
+
+**Files:**
+- Modify: `.github/workflows/publish-ruby.yml`
+
+- [ ] **Step 1: Reemplazar el contenido de `.github/workflows/publish-ruby.yml`**
+
+Reemplazar el archivo entero con el nuevo diseño que incluye triggers de tags, job de tag-creation y las condiciones actualizadas:
+
+```yaml
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
 name: publish-ruby
@@ -124,3 +148,11 @@ jobs:
           chmod 0600 ~/.gem/credentials
           cd ruby
           gem push *.gem
+```
+
+- [ ] **Step 2: Commit local de los cambios**
+
+```bash
+git add .github/workflows/publish-ruby.yml
+git commit -m "ci: add automatic git tagging to ruby workflow"
+```
