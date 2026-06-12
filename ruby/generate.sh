@@ -25,12 +25,28 @@ JAVA_OPTS="-Xmx4g" OPENAPI_GENERATOR_VERSION=$OPENAPI_GEN_VERSION \
 echo "Moving generated library code..."
 mkdir -p "lib/ecf_dgii"
 mv "$TEMP_GEN_DIR/lib/ecf_dgii_generated" "$GENERATED_DIR"
+mv "$TEMP_GEN_DIR/lib/ecf_dgii_generated.rb" "lib/ecf_dgii/generated.rb"
 
 echo "Adjusting internal requires..."
 # Reemplazar requires en todos los archivos generados
-find "$GENERATED_DIR" -type f -name "*.rb" -exec sed -i "s|require 'ecf_dgii_generated/|require 'ecf_dgii/generated/|g" {} +
+find "$GENERATED_DIR" -type f -name "*.rb" -exec ruby -pi -e "gsub(\"require 'ecf_dgii_generated/\", \"require 'ecf_dgii/generated/\")" {} +
+ruby -pi -e "gsub(\"require 'ecf_dgii_generated/\", \"require 'ecf_dgii/generated/\")" "lib/ecf_dgii/generated.rb"
+
+echo "Fixing invalid enum syntax in tipo_descuento_recargo_type.rb models..."
+ruby -e '
+  Dir.glob("lib/ecf_dgii/generated/models/*tipo_descuento_recargo_type.rb").each do |file|
+    content = File.read(file)
+    content.gsub!(/^\s+=\s+"\$"\.freeze/, "    DOLLAR = \"$\".freeze")
+    content.gsub!(/^\s+2\s+=\s+"%"\.freeze/, "    PERCENT = \"%\".freeze")
+    content.gsub!(/\[,\s*2\]/, "[DOLLAR, PERCENT]")
+    File.write(file, content)
+  end
+'
 
 echo "Cleaning up temporal directory..."
 rm -rf "$TEMP_GEN_DIR"
+rm -rf "temp_gen"
 
-echo "Done. Generated code is in $GENERATED_DIR/"
+
+echo "Done. Generated code is in $GENERATED_DIR/ and entrypoint in lib/ecf_dgii/generated.rb"
+

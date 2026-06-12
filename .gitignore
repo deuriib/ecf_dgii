@@ -515,7 +515,9 @@ nbdist/
 
 # Ruby
 ruby/lib/ecf_dgii/generated/
+ruby/lib/ecf_dgii/generated.rb
 ruby/pkg/
+
 ruby/.bundle/
 ruby/vendor/bundle/
 ruby/Gemfile.lock

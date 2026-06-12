@@ -16,6 +16,10 @@ Gem::Specification.new do |spec|
 
   # Dependencias de producción
   spec.add_dependency "faraday", ">= 1.0", "< 3.0"
+  spec.add_dependency "faraday-multipart", ">= 1.0", "< 3.0"
+  spec.add_dependency "marcel", ">= 1.0", "< 2.0"
+
+
 
   # Dependencias de desarrollo/pruebas
   spec.add_development_dependency "rspec", "~> 3.12"
