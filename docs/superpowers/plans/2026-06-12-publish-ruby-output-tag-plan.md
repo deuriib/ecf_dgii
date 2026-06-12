@@ -1,3 +1,28 @@
+# Auto-Tagging y Despliegue en la misma ejecución - Plan de Implementación
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Resolver la restricción de GitHub Actions por la cual los eventos disparados por `GITHUB_TOKEN` no desencadenan otros workflows. Configurar el job `tag-creation` para producir un output (`created: true`) y encadenar el job `deploy` para ejecutarse en el mismo pipeline si el tag fue recién creado.
+
+**Architecture:**
+1. `push` a `main` -> ejecuta `build`.
+2. `tag-creation` se ejecuta después de `build`. Si crea y empuja el tag, retorna `created=true`.
+3. `deploy` se ejecuta después de `build` y `tag-creation`. Se ejecuta si el evento es un release manual OR si el push a main produjo un tag nuevo (`created == 'true'`).
+
+**Tech Stack:** GitHub Actions, Git, Ruby.
+
+---
+
+### Task 1: Modificar el archivo de workflow de GitHub Actions
+
+**Files:**
+- Modify: `.github/workflows/publish-ruby.yml`
+
+- [ ] **Step 1: Reemplazar el contenido de `.github/workflows/publish-ruby.yml`**
+
+Reemplazar el archivo con el nuevo diseño que implementa outputs y encadenamiento:
+
+```yaml
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
 name: publish-ruby
@@ -127,3 +152,11 @@ jobs:
           chmod 0600 ~/.gem/credentials
           cd ruby
           gem push *.gem
+```
+
+- [ ] **Step 2: Commit local de los cambios**
+
+```bash
+git add .github/workflows/publish-ruby.yml
+git commit -m "ci: deploy in the same run if new tag is created"
+```
