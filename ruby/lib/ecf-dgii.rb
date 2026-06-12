@@ -35,3 +35,6 @@ module EcfDgii
     end
   end
 end
+
+require_relative "ecf_dgii/railtie" if defined?(Rails)
+
