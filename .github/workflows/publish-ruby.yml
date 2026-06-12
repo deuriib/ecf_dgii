@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install release dependencies
+        run: npm install
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -57,9 +60,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: |
-          npx -p semantic-release \
-              -p semantic-release-monorepo \
-              -p @semantic-release/exec \
-              -p @semantic-release/git \
-              semantic-release
+        run: npx semantic-release
