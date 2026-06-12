@@ -15,7 +15,7 @@
 **Files:**
 - Create: `mise.toml`
 
-- [ ] **Step 1: Crear el archivo `mise.toml`**
+- [x] **Step 1: Crear el archivo `mise.toml`**
 
 Escribir el siguiente contenido en el archivo:
 
@@ -69,7 +69,7 @@ description = "Actualiza las colecciones de Bruno"
 run = "./scripts/regenerate-all.sh bruno"
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add mise.toml
@@ -83,14 +83,14 @@ git commit -m "feat: add mise.toml configuration with tools and tasks"
 **Files:**
 - Modify: None (verification step)
 
-- [ ] **Step 1: Instalar herramientas especificadas**
+- [x] **Step 1: Instalar herramientas especificadas**
 
 Ejecutar el comando de instalación de mise para asegurar que todas las herramientas y plugins se descarguen e instalen.
 
 Run: `mise install`
 Expected output: Mensajes indicando que se instalaron o usaron las versiones correctas de dotnet, node, pnpm, python, java, kiota.
 
-- [ ] **Step 2: Verificar versión activa de las herramientas principales**
+- [x] **Step 2: Verificar versión activa de las herramientas principales**
 
 Correr comandos de versión para verificar que `mise` los esté sirviendo correctamente.
 
@@ -109,14 +109,26 @@ Expected output:
 **Files:**
 - Modify: None (verification step)
 
-- [ ] **Step 1: Listar las tareas disponibles en mise**
+- [x] **Step 1: Listar las tareas disponibles en mise**
 
 Run: `mise tasks`
 Expected output: Una lista de tareas que incluye `regen`, `regen:dotnet`, `regen:typescript`, etc., con sus respectivas descripciones.
 
-- [ ] **Step 2: Ejecutar una tarea de prueba (ej. bruno)**
+- [x] **Step 2: Ejecutar una tarea de prueba (ej. bruno)**
 
 Haremos una prueba con la tarea `regen:bruno` que usa `bru` si estuviera disponible, o de lo contrario validaremos si el script `./scripts/regenerate-all.sh` es invocado. Nota: Si falla porque falta el archivo `v1.json` del spec de OpenAPI, el script debería fallar indicando "Spec not found at..." en vez de fallar porque las herramientas o el script no son encontrados.
 
 Run: `mise run regen:bruno`
 Expected output: El script de regeneración debe ejecutarse e intentar buscar el spec en la ruta establecida, imprimiendo el mensaje correspondiente en consola.
+
+- [x] **Step 3: Fijar versiones exactas de Node y pnpm en `mise.toml`**
+
+Modificar `mise.toml` para usar `node = "22.22.3"` y `pnpm = "11.6.0"`.
+
+- [x] **Step 4: Hacer commit de las versiones fijadas**
+
+Run:
+```bash
+git add mise.toml
+git commit -m "refactor: pin node and pnpm versions in mise.toml for reproducibility"
+```
