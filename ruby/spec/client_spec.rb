@@ -37,4 +37,23 @@ RSpec.describe EcfDgii::Client do
     expect(client.ecf_api).to be_an_instance_of(EcfDgii::Generated::EcfApi)
     expect(client.dgii_api).to be_an_instance_of(EcfDgii::Generated::DgiiApi)
   end
+
+  it "dynamically routes send_ecf based on tipoe_cf in encabezado" do
+    client = described_class.new
+    
+    # Mocking id_doc and encabezado structure
+    id_doc = double(tipoe_cf: "FacturaDeCreditoFiscalElectronica")
+    encabezado = double(id_doc: id_doc)
+    ecf = double(encabezado: encabezado)
+
+    # Expect delegation to send_ecf31
+    expect(client).to receive(:send_ecf31).with(ecf).and_return(:success)
+    expect(client.send_ecf(ecf)).to eq(:success)
+  end
+
+  it "delegates company operations to company_api" do
+    client = described_class.new
+    expect(client.company_api).to receive(:get_company_by_rnc).with("123456789").and_return(:company)
+    expect(client.get_company_by_rnc("123456789")).to eq(:company)
+  end
 end
