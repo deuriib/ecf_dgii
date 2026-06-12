@@ -14,6 +14,7 @@ module EcfDgii
       token = api_key || ENV["ECF_API_KEY"]
       resolved_url = base_url || ENV["ECF_API_URL"] || ENVIRONMENT_URLS[environment.to_sym]
       raise ArgumentError, "Se requiere un api_key o la variable de entorno ECF_API_KEY" if token.nil? || token.empty?
+      raise ArgumentError, "El entorno especificado o la URL base no son válidos" if resolved_url.nil? || resolved_url.empty?
 
       config = EcfDgii::Generated::Configuration.new
       uri = URI.parse(resolved_url)
@@ -22,7 +23,7 @@ module EcfDgii
       config.host = uri.host
       config.base_path = uri.path.empty? ? "" : uri.path
       
-      config.api_key["Authorization"] = "Bearer #{token}"
+      config.access_token = token
       config.timeout = timeout
 
       @api_client = EcfDgii::Generated::ApiClient.new(config)

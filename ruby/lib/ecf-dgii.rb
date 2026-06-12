@@ -11,6 +11,7 @@ module EcfDgii
   def self.configure
     self.configuration ||= Configuration.new
     yield(configuration)
+    @client = nil
   end
 
   def self.client
