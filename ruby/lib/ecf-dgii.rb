@@ -2,6 +2,7 @@ require "uri"
 require_relative "ecf_dgii/version"
 require_relative "ecf_dgii/generated"
 require_relative "ecf_dgii/client"
+require_relative "ecf_dgii/polling"
 
 module EcfDgii
   class << self
