@@ -512,3 +512,11 @@ nbdist/
 *.old
 *.tmp
 *.temp
+
+# Ruby
+ruby/lib/ecf_dgii/generated/
+ruby/pkg/
+ruby/.bundle/
+ruby/vendor/bundle/
+ruby/Gemfile.lock
+ruby/.rspec
