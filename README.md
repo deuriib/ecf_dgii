@@ -17,6 +17,7 @@
 | React | [![npm Version](https://img.shields.io/npm/v/@ssddo/ecf-react)](https://www.npmjs.com/package/@ssddo/ecf-react) [![npm Downloads](https://img.shields.io/npm/dm/@ssddo/ecf-react)](https://www.npmjs.com/package/@ssddo/ecf-react) | `npm install @ssddo/ecf-react` | [README](react/README.md) |
 | Python | [![PyPI Version](https://img.shields.io/pypi/v/ecf-dgii)](https://pypi.org/project/ecf-dgii/) [![PyPI Downloads](https://img.shields.io/pypi/dm/ecf-dgii)](https://pypi.org/project/ecf-dgii/) | `pip install ecf-dgii` | [README](python/README.md) |
 | PHP | [![Packagist Version](https://img.shields.io/packagist/v/ecfx/ecf-dgii-php)](https://packagist.org/packages/ecfx/ecf-dgii-php) [![Packagist Downloads](https://img.shields.io/packagist/dt/ecfx/ecf-dgii-php)](https://packagist.org/packages/ecfx/ecf-dgii-php) | `composer require ecfx/ecf-dgii-php` | [README](https://github.com/SSD-Smart-Software-Development-SRL/ecf-dgii-php) |
+| Ruby | [![Gem Version](https://badge.fury.io/rb/ecf-dgii.svg)](https://badge.fury.io/rb/ecf-dgii) | `gem install ecf-dgii` | [README](ruby/README.md) |
 | Java | [![Maven Central](https://img.shields.io/maven-central/v/do.com.ssd.ecfx/ecf-dgii-sdk-java)](https://central.sonatype.com/artifact/do.com.ssd.ecfx/ecf-dgii-sdk-java) | `implementation 'do.com.ssd.ecfx:ecf-dgii-sdk-java:1.0.0'` | [README](java/README.md) |
 | Kotlin | [![Maven Central](https://img.shields.io/maven-central/v/do.com.ssd.ecfx/ecf-dgii-sdk-kotlin)](https://central.sonatype.com/artifact/do.com.ssd.ecfx/ecf-dgii-sdk-kotlin) | `implementation("do.com.ssd.ecfx:ecf-dgii-sdk-kotlin:1.0.0")` | [README](kotlin/README.md) |
 | iOS/Swift | [Swift Package Manager](https://swift.org/package-manager/) | Ver [ios/README.md](ios/README.md) | [README](ios/README.md) |
@@ -172,6 +173,37 @@ resultado = client.send_ecf({
 })
 ```
 
+```ruby
+# Ruby
+require 'ecf-dgii'
+
+client = EcfDgii::Client.new(
+  api_key: "tu-jwt-token",
+  environment: :prod
+)
+
+resultado = client.send_ecf({
+  encabezado: {
+    id_doc: {
+      tipoe_cf: "FacturaDeCreditoFiscalElectronica",
+      encf: "E310000000001"
+    },
+    emisor: {
+      rnc_emisor: "123456789",
+      razon_social_emisor: "Mi Empresa SRL"
+    }
+  },
+  detalles_items: [
+    {
+      nombre_item: "Servicio de consultoría",
+      cantidad_item: 1,
+      precio_unitario_item: 10000.00,
+      monto_item: 10000.00
+    }
+  ]
+})
+```
+
 ---
 
 ## Ambientes
@@ -274,6 +306,15 @@ const fechaFirma = resultado.fechaFirma;       // fecha de firma digital
 
 ```python
 # Python
+resultado = client.send_ecf(ecf)
+
+url_qr = resultado.impresion_url              # codificar como QR
+codigo_seguridad = resultado.cod_sec          # imprimir en el comprobante
+fecha_firma = resultado.fecha_firma           # fecha de firma digital
+```
+
+```ruby
+# Ruby
 resultado = client.send_ecf(ecf)
 
 url_qr = resultado.impresion_url              # codificar como QR
@@ -434,6 +475,7 @@ Cada SDK tiene su propia documentación con ejemplos específicos:
 | TypeScript | [typescript/README.md](typescript/README.md) |
 | Python | [python/README.md](python/README.md) |
 | PHP | [ecf-dgii-php](https://github.com/SSD-Smart-Software-Development-SRL/ecf-dgii-php) |
+| Ruby | [ruby/README.md](ruby/README.md) |
 | Java | [java/README.md](java/README.md) |
 | Kotlin | [kotlin/README.md](kotlin/README.md) |
 | iOS/Swift | [ios/README.md](ios/README.md) |
