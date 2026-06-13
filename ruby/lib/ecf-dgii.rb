@@ -1,8 +1,10 @@
 require "uri"
 require_relative "ecf_dgii/version"
 require_relative "ecf_dgii/generated"
+require_relative "ecf_dgii/exceptions"
 require_relative "ecf_dgii/client"
 require_relative "ecf_dgii/polling"
+require_relative "ecf_dgii/frontend_client"
 
 module EcfDgii
   class << self
@@ -37,4 +39,3 @@ module EcfDgii
 end
 
 require_relative "ecf_dgii/railtie" if defined?(Rails)
-

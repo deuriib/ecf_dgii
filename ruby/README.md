@@ -5,6 +5,30 @@
 
 SDK de Ruby para la **API ECF DGII** — Comprobantes Fiscales Electrónicos de la República Dominicana.
 
+---
+
+## Índice
+
+- [Instalación](#instalación)
+- [Inicio rápido](#inicio-rápido)
+- [Configuración](#configuración)
+  - [Autenticación](#autenticación)
+  - [Ambientes de trabajo](#ambientes-de-trabajo)
+  - [Integración en Ruby on Rails](#integración-en-ruby-on-rails)
+- [EcfClient — Backend (Full Access)](#ecfclient--backend-full-access)
+  - [Envío de ECF con polling automático](#envío-de-ecf-con-polling-automático)
+  - [Operaciones de empresa](#operaciones-de-empresa)
+  - [Certificados P12](#certificados-p12)
+  - [Consultas DGII](#consultas-dgii)
+  - [Recepción y aprobación comercial](#recepción-y-aprobación-comercial)
+- [EcfFrontendClient — Frontend (Read-Only)](#ecffrontendclient--frontend-read-only)
+- [Polling con backoff exponencial](#polling-con-backoff-exponencial)
+- [Manejo de errores](#manejo-de-errores)
+- [Arquitectura Backend / Frontend](#arquitectura-backend--frontend)
+- [Licencia](#licencia)
+
+---
+
 ## Instalación
 
 Añade esta línea al `Gemfile` de tu aplicación:
@@ -24,6 +48,8 @@ O instálalo tú mismo con:
 ```bash
 gem install ecf-dgii
 ```
+
+---
 
 ## Inicio rápido
 
@@ -118,9 +144,11 @@ ecf = EcfDgii::Generated::Ecf31ECF.new(
 )
 
 # 3. Enviar el eCF con enrutamiento automático y polling hasta completar
-result = client.send_ecf_and_poll(ecf)
+result = client.send_ecf(ecf)
 puts "eCF Procesado: #{result.encf} - Estado: #{result.progress}"
 ```
+
+---
 
 ## Configuración
 
@@ -184,26 +212,219 @@ Una vez configurado el inicializador, puedes acceder al cliente en cualquier par
 client = EcfDgii.client
 ```
 
-## Funcionalidades de envío y Polling
+---
 
-El método `send_ecf_and_poll` maneja de forma transparente:
+## EcfClient — Backend (Full Access)
+
+El `EcfDgii::Client` ofrece acceso completo a la API de ECF: envío de comprobantes, consultas, operaciones de empresa y certificados, consultas DGII, etc.
+
+### Envío de ECF con polling automático
+
+El método `send_ecf` (1:1 con el `sendEcf` del SDK de TypeScript) maneja de forma transparente:
+
+- **Validación completa** — verifica que `tipoeCF`, `rncEmisor` y `encf` estén presentes (mismo comportamiento que TypeScript).
 - **Enrutamiento dinámico** — selecciona el endpoint correcto según el atributo `tipoe_cf` de la cabecera.
-- **Polling con backoff exponencial** — consulta repetidamente el estado de procesamiento del eCF hasta llegar a un estado terminal (`Completed`, `Failed` o `Rejected`).
-- **Manejo de tiempos límite y reintentos** — lanza excepciones controladas si se excede el timeout de espera.
+- **Polling con backoff exponencial** — consulta repetidamente el estado de procesamiento del eCF hasta llegar a un estado terminal (`Finished` o `Error`).
+- **EcfError en errores** — si el progreso termina en `Error`, lanza `EcfError` con la respuesta completa.
 
-Para personalizar los tiempos de espera y el backoff exponencial:
+```ruby
+# Envío con polling automático (reemplaza a send_ecf_and_poll)
+result = client.send_ecf(ecf)
+
+# Con opciones de polling personalizadas
+result = client.send_ecf(ecf, EcfDgii::PollingOptions.new(
+  initial_delay: 1.0,
+  max_retries: 60,
+  timeout: 120.0
+))
+```
+
+> **Nota:** `send_ecf_and_poll` sigue disponible como alias por compatibilidad, pero ahora `send_ecf` ya incluye el polling (1:1 con TypeScript).
+
+### Operaciones de Empresa
+
+```ruby
+# Listar empresas registradas
+companies = client.get_companies(page: 1, limit: 10)
+
+# Obtener los datos de una empresa específica por RNC
+company = client.get_company_by_rnc("101001010")
+
+# Registrar o actualizar datos de una empresa
+req = EcfDgii::Generated::UpsertCompanyRequest.new(
+  rnc: "101001010",
+  legal_name: "Empresa de Pruebas SRL",
+  name: "Empresa de Pruebas"
+)
+client.upsert_company(req)
+
+# Eliminar empresa
+client.delete_company("101001010")
+```
+
+### Certificados P12
+
+```ruby
+# Obtener el certificado actual de la empresa
+certificate = client.get_certificate("101001010")
+
+# Subir/actualizar un certificado de firma digital P12
+client.update_certificate("101001010", File.open("ruta/al/certificado.p12", "rb"), "clave-del-certificado")
+```
+
+> Los métodos antiguos `get_current_certificate` y `update_certificate_company` siguen disponibles como alias.
+
+### Consultas DGII
+
+```ruby
+# Consultar estado actual del eCF
+estado = client.consulta_estado("101001010", "101001010", "E310000051630", "131880681", "ABC123")
+
+# Consultar directorio de emisores electrónicos activos en DGII
+directorio = client.consulta_directorio_listado("101001010")
+
+# Consultar RFCE (incluye código de seguridad, 1:1 con TypeScript)
+rfce = client.consulta_rfce("101001010", "101001010", "E310000051630", "SEC123")
+
+# Consultar estado de procesamiento mediante el track_id obtenido
+resultado = client.consulta_resultado("101001010", "track-id-obtenido")
+
+# Obtener estatus general de los servicios de la DGII
+estatus = client.estatus_servicios("101001010")
+```
+
+### Recepción y aprobación comercial
+
+```ruby
+# Buscar solicitudes de recepción
+requests = client.search_ecf_reception_requests(page: 1, limit: 10)
+
+# Obtener una solicitud de recepción por RNC y messageId
+request = client.get_ecf_reception_request("101001010", "msg_123")
+
+# Enviar aprobación comercial (ACECF) para un messageId
+client.aprobacion_comercial("msg_123", body)
+
+# Anular rangos de comprobantes
+client.anulacion_rangos("101001010", anulacion_request)
+
+# Firmar semilla
+client.firmar_semilla("101001010", xml_body)
+```
+
+---
+
+## EcfFrontendClient — Frontend (Read-Only)
+
+El `EcfDgii::FrontendClient` es un cliente restringido que solo expone endpoints **GET** (solo lectura), diseñado para usarse en frontends. El manejo del token es automático:
+
+1. En cada petición, verifica si hay un token en caché. Si no, obtiene uno nuevo y lo almacena.
+2. En respuestas `401`, obtiene un token nuevo, actualiza la caché y reintenta la petición.
+
+**¡NUEVO!** — Ahora disponible en Ruby (1:1 con `EcfFrontendClient` del SDK de TypeScript).
+
+```ruby
+# Crear un frontend client
+frontend = EcfDgii::FrontendClient.new(
+  get_token: -> { fetch_fresh_token_from_backend },  # Requerido
+  environment: :test
+)
+
+# Solo operaciones de lectura disponibles
+ecfs = frontend.search_ecfs("131460941", page: 1, limit: 10)
+company = frontend.get_company_by_rnc("131460941")
+```
+
+### Factory method
+
+```ruby
+frontend = EcfDgii.create_frontend_client(
+  get_token: -> { fetch_fresh_token_from_backend },
+  environment: :test
+)
+```
+
+### Cache personalizado
+
+Por defecto el token se guarda en `~/.ecf-dgii/token`. Puedes proveer tu propia lógica de caché:
+
+```ruby
+frontend = EcfDgii::FrontendClient.new(
+  get_token: -> { fetch_fresh_token_from_backend },
+  cache_token: ->(token) { Redis.current.set("ecf-token", token) },
+  get_cached_token: -> { Redis.current.get("ecf-token") },
+  environment: :test
+)
+```
+
+---
+
+## Polling con backoff exponencial
+
+El SDK incluye un módulo de polling genérico que puedes usar directamente:
+
+```ruby
+resultado = EcfDgii::Polling.poll_until_complete do
+  client.query_ecf(rnc, encf)
+end
+```
+
+### Opciones de polling (1:1 con TypeScript)
 
 ```ruby
 options = EcfDgii::PollingOptions.new(
-  initial_delay: 2.0,       # Segundos antes de la primera consulta
-  max_delay: 30.0,          # Límite máximo de espera entre consultas
-  max_retries: 50,          # Intentos máximos de consulta (0 para ilimitado)
-  backoff_multiplier: 1.5,  # Multiplicador del retraso en cada intento
-  timeout: 300.0            # Timeout total en segundos
+  initial_delay: 1.0,       # Segundos antes de la primera consulta (default: 1.0)
+  max_delay: 30.0,          # Límite máximo de espera entre consultas (default: 30.0)
+  max_retries: 60,          # Intentos máximos (default: 60, 0 = ilimitado)
+  backoff_multiplier: 2.0,  # Multiplicador del retraso en cada intento (default: 2.0)
+  timeout: nil,             # Timeout total en segundos (nil = sin timeout)
+  cancellation: -> { stop_polling_flag }  # Callable de cancelación opcional
 )
-
-result = client.send_ecf_and_poll(ecf, options)
 ```
+
+### Valores terminales
+
+El polling termina cuando el progreso es `"Finished"` (éxito) o `"Error"` (fallo), igual que el SDK de TypeScript y el contrato de la API.
+
+---
+
+## Manejo de errores
+
+El SDK utiliza una jerarquía de excepciones tipadas, 1:1 con el SDK de TypeScript:
+
+```ruby
+begin
+  result = client.send_ecf(ecf)
+rescue EcfDgii::EcfError => e
+  # Error de procesamiento del ECF — incluye la respuesta completa
+  puts "Error del ECF: #{e.message}"
+  puts "Respuesta completa: #{e.response.inspect}" if e.response
+rescue EcfDgii::PollingTimeoutError => e
+  puts "El polling tomó más tiempo de lo permitido: #{e.message}"
+rescue EcfDgii::PollingMaxRetriesError => e
+  puts "Se superó el número máximo de reintentos: #{e.message}"
+rescue EcfDgii::Generated::ApiError => e
+  puts "Error de API de ECF (Estatus: #{e.code})"
+  puts "Respuesta: #{e.response_body}"
+rescue ArgumentError => e
+  puts "Error de validación: #{e.message}"
+rescue => e
+  puts "Ocurrió un error inesperado: #{e.message}"
+end
+```
+
+### Jerarquía de errores
+
+```
+StandardError
+└── EcfDgii::EcfError          # Error base del SDK (incluye response)
+    ├── EcfDgii::PollingTimeoutError    # Timeout de polling
+    └── EcfDgii::PollingMaxRetriesError # Máximo de reintentos
+```
+
+> `EcfDgii::PollingError` se mantiene como alias de `EcfError` por compatibilidad.
+
+---
 
 ## Arquitectura Backend / Frontend
 
@@ -240,76 +461,9 @@ sequenceDiagram
 
 1. Tu backend en Rails convierte las facturas internas a los modelos del eCF y los transmite con `client.send_ecf(ecf)`.
 2. La API de ECF responde de inmediato con un `messageId` para que el backend Rails responda al cliente web sin bloquearse.
-3. El frontend del browser puede pedir un token de API de sólo lectura llamando a un endpoint en Rails (el cual usa `client.new_company_api_key`), para después hacer polling directamente contra la API de eCF de forma segura.
+3. El frontend usa `EcfDgii::FrontendClient` con un token de solo lectura (obtenido via `client.create_api_key`) para hacer polling directamente contra la API de eCF de forma segura.
 
-## Gestión de Empresas y Certificados
-
-### Operaciones de Empresa
-
-```ruby
-# Listar empresas registradas
-companies = client.get_companies(page: 1, limit: 10)
-
-# Obtener los datos de una empresa específica por RNC
-company = client.get_company_by_rnc("101001010")
-
-# Registrar o actualizar datos de una empresa
-req = EcfDgii::Generated::UpsertCompanyRequest.new(
-  rnc: "101001010",
-  legal_name: "Empresa de Pruebas SRL",
-  name: "Empresa de Pruebas"
-)
-client.upsert_company(req)
-
-# Eliminar empresa
-client.delete_company("101001010")
-```
-
-### Certificados P12
-
-```ruby
-# Obtener el certificado actual de la empresa
-certificate = client.get_current_certificate("101001010")
-
-# Subir/actualizar un certificado de firma digital P12
-file = File.open("ruta/al/certificado.p12", "r+b")
-client.update_certificate_company("101001010", file, "clave-del-certificado")
-```
-
-## Consultas DGII
-
-```ruby
-# Consultar estado actual del eCF
-estado = client.consulta_estado("101001010", "101001010", "E310000051630", "131880681", "ABC123")
-
-# Consultar directorio de emisores electrónicos activos en DGII
-directorio = client.consulta_directorio("101001010")
-
-# Consultar estado de procesamiento mediante el track_id obtenido
-resultado = client.consulta_resultado("101001010", "track-id-obtenido")
-
-# Obtener estatus general de los servicios de la DGII
-estatus = client.estatus_servicio("101001010")
-```
-
-## Manejo de errores
-
-El SDK utiliza el control estructurado de excepciones. Puedes capturar los errores comunes del API Client y los tiempos límite del polling de la siguiente manera:
-
-```ruby
-begin
-  result = client.send_ecf_and_poll(ecf)
-rescue EcfDgii::PollingTimeoutError => e
-  puts "El polling tomó más tiempo de lo permitido: #{e.message}"
-rescue EcfDgii::PollingMaxRetriesError => e
-  puts "Se superó el número máximo de reintentos: #{e.message}"
-rescue EcfDgii::Generated::ApiError => e
-  puts "Error de API de ECF (Estatus: #{e.code})"
-  puts "Respuesta: #{e.response_body}"
-rescue => e
-  puts "Ocurrió un error inesperado: #{e.message}"
-end
-```
+---
 
 ## Licencia
 
