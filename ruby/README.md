@@ -228,7 +228,7 @@ El método `send_ecf` (1:1 con el `sendEcf` del SDK de TypeScript) maneja de for
 - **EcfError en errores** — si el progreso termina en `Error`, lanza `EcfError` con la respuesta completa.
 
 ```ruby
-# Envío con polling automático (reemplaza a send_ecf_and_poll)
+# Envío con polling automático
 result = client.send_ecf(ecf)
 
 # Con opciones de polling personalizadas
@@ -238,8 +238,6 @@ result = client.send_ecf(ecf, EcfDgii::PollingOptions.new(
   timeout: 120.0
 ))
 ```
-
-> **Nota:** `send_ecf_and_poll` sigue disponible como alias por compatibilidad, pero ahora `send_ecf` ya incluye el polling (1:1 con TypeScript).
 
 ### Operaciones de Empresa
 
@@ -271,8 +269,6 @@ certificate = client.get_certificate("101001010")
 # Subir/actualizar un certificado de firma digital P12
 client.update_certificate("101001010", File.open("ruta/al/certificado.p12", "rb"), "clave-del-certificado")
 ```
-
-> Los métodos antiguos `get_current_certificate` y `update_certificate_company` siguen disponibles como alias.
 
 ### Consultas DGII
 
@@ -421,8 +417,6 @@ StandardError
     ├── EcfDgii::PollingTimeoutError    # Timeout de polling
     └── EcfDgii::PollingMaxRetriesError # Máximo de reintentos
 ```
-
-> `EcfDgii::PollingError` se mantiene como alias de `EcfError` por compatibilidad.
 
 ---
 

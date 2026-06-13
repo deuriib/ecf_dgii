@@ -27,7 +27,7 @@ module EcfDgii
       "ComprobanteParaPagosAlExteriorElectronico" => "47"
     }.freeze
 
-    # @return [EcfDgii::Generated::ApiClient] The underlying generated API client.
+    # @return [EcfDgii::Generated::ApiClient] The underlying API client.
     attr_reader :api_client
 
     # @return [Symbol] The configured environment (:test, :cert, or :prod).
@@ -138,15 +138,8 @@ module EcfDgii
       result
     end
 
-    # Convenience alias matching older Ruby SDK API.
-    # @deprecated Use {#send_ecf} instead (which now includes polling 1:1 with TS).
-    def send_ecf_and_poll(ecf, options = nil)
-      send_ecf(ecf, options)
-    end
-
     # ---------------------------------------------------------------------------
-    # Individual ECF type send methods (kept for backward compatibility)
-    # ---------------------------------------------------------------------------
+    # Individual ECF type send methods
 
     def send_ecf31(ecf)
       ecf_api.recepcion_ecf_31(ecf)
@@ -229,12 +222,6 @@ module EcfDgii
     def update_certificate(rnc, certificate, password)
       company_api.update_certificate_company(rnc, certificate, password)
     end
-
-    # @deprecated Use {#get_certificate} instead.
-    alias get_current_certificate get_certificate
-
-    # @deprecated Use {#update_certificate} instead.
-    alias update_certificate_company update_certificate
 
     # ---------------------------------------------------------------------------
     # ECF query & search operations
@@ -321,9 +308,6 @@ module EcfDgii
       recepcion_api.aprobacion_comercial(message_id, body)
     end
 
-    # @deprecated Use {#aprobacion_comercial} instead.
-    alias send_aprobacion_comercial aprobacion_comercial
-
     # ---------------------------------------------------------------------------
     # ApiKey operations
     # ---------------------------------------------------------------------------
@@ -332,9 +316,6 @@ module EcfDgii
     def create_api_key(body)
       api_key_api.new_company_api_key(body)
     end
-
-    # @deprecated Use {#create_api_key} instead.
-    alias new_company_api_key create_api_key
 
     # ---------------------------------------------------------------------------
     # DGII operations
@@ -389,12 +370,6 @@ module EcfDgii
     def ventanas_mantenimiento(rnc)
       dgii_api.estatus_servicios_obtener_ventanas_mantenimiento(rnc)
     end
-
-    # @deprecated Use {#estatus_servicios} instead.
-    alias estatus_servicio estatus_servicios
-
-    # @deprecated Use {#consulta_directorio_listado} instead.
-    alias consulta_directorio consulta_directorio_listado
 
     private
 

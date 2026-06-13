@@ -115,10 +115,6 @@ RSpec.describe EcfDgii::Client do
       expect(client.get_certificate("123456789")).to eq(:cert)
     end
 
-    it "aliases get_current_certificate to get_certificate" do
-      client = described_class.new
-      expect(client.method(:get_current_certificate)).to eq(client.method(:get_certificate))
-    end
   end
 
   describe "ECF query operations" do

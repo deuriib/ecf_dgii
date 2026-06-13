@@ -41,8 +41,3 @@ RSpec.describe EcfDgii::PollingMaxRetriesError do
   end
 end
 
-RSpec.describe "PollingError backward compatibility" do
-  it "is an alias for EcfError" do
-    expect(EcfDgii::PollingError).to eq(EcfDgii::EcfError)
-  end
-end

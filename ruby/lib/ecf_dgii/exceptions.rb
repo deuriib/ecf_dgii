@@ -23,7 +23,4 @@ module EcfDgii
       super("Polling exceeded maximum retries (#{retries})")
     end
   end
-
-  # @deprecated Use {EcfError} instead. Kept for backward compatibility.
-  PollingError = EcfError
 end
