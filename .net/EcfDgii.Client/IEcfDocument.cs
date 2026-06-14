@@ -1,11 +1,13 @@
+using EcfDgii.Client.Generated.Models;
+
 namespace EcfDgii.Client
 {
     /// <summary>
-    /// Internal interface to unify Kiota-generated ECF models.
+    /// Public interface to unify Kiota-generated ECF models.
     /// </summary>
-    internal interface IEcfDocument
+    public interface IEcfDocument
     {
-        string? TipoeCF { get; }
+        TipoeCFType? TipoeCF { get; }
         string? RncEmisor { get; }
         string? Encf { get; }
     }
