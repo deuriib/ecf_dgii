@@ -39,7 +39,7 @@ async def test_client_renamed_methods() -> None:
         await client.get_ecf_reception_request("131460941", "11111111-1111-1111-1111-111111111111")
         m3.assert_called_once()
 
-        from ecf_dgii.generated.models import SendAcecfRequest, EstadoType
+        from ecf_dgii.generated.models import EstadoType, SendAcecfRequest
 
         await client.aprobacion_comercial(
             "11111111-1111-1111-1111-111111111111", SendAcecfRequest(estado_type=EstadoType.ECFACEPTADO)
