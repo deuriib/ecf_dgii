@@ -67,6 +67,9 @@ from .generated.models import (
     UpsertCompanyRequest,
 )
 
+# Alias for backward compatibility
+EstadoType = EcfEstadoType1
+
 __all__ = [
     # Client
     "EcfClient",
@@ -136,4 +139,5 @@ __all__ = [
     "SendAcecfRequest",
     "Token",
     "UpsertCompanyRequest",
+    "EstadoType",
 ]
