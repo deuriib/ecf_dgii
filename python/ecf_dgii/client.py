@@ -9,8 +9,58 @@ from uuid import UUID
 import httpx
 
 from .exceptions import raise_for_status
+from .generated.api.api_key import new_company_api_key
+from .generated.api.aprobacion_comercial import (
+    get_acecf_reception_request,
+    search_acecf_reception_requests,
+)
+from .generated.api.company import (
+    delete_company,
+    get_companies,
+    get_company_by_rnc,
+    get_current_certificate,
+    update_certificate_company,
+    upsert_company,
+)
+from .generated.api.dgii import (
+    consulta_directorio_listado,
+    consulta_directorio_obtener_directorio_por_rnc,
+    consulta_estado,
+    consulta_resultado,
+    consulta_rfce,
+    consulta_timbre,
+    consulta_timbre_fc,
+    consulta_track_id,
+    estatus_servicios_obtener_estatus,
+    estatus_servicios_obtener_ventanas_mantenimiento,
+)
+from .generated.api.ecf import (
+    anulacion_rangos,
+    firmar_semilla,
+    get_ecf_by_id,
+    list_anulaciones,
+    query_ecf,
+    recepcion_ecf_31,
+    recepcion_ecf_32,
+    recepcion_ecf_33,
+    recepcion_ecf_34,
+    recepcion_ecf_41,
+    recepcion_ecf_43,
+    recepcion_ecf_44,
+    recepcion_ecf_45,
+    recepcion_ecf_46,
+    recepcion_ecf_47,
+    search_all_ecfs,
+    search_ecfs,
+)
+from .generated.api.recepcion import (
+    get_ecf_reception_request,
+    get_ecf_receptor_by_message_id,
+    search_ecf_reception_requests,
+    search_ecf_reception_requests_by_rnc,
+    send_aprobacion_comercial,
+)
 from .generated.client import AuthenticatedClient
-from .generated.types import UNSET
 from .generated.models import (
     AllTipoECFTypes,
     AnulacionRequest,
@@ -34,8 +84,8 @@ from .generated.models import (
     PaginatedApiResultOfAcecfReceptionRequestDto,
     PaginatedApiResultOfAnulacionListResponse,
     PaginatedApiResultOfCompanyResponse,
-    PaginatedApiResultOfEcfResponse,
     PaginatedApiResultOfEcfReceptionRequestDto,
+    PaginatedApiResultOfEcfResponse,
     ProblemDetails,
     RespuestaAnulacionRango,
     RespuestaConsultaEstado,
@@ -47,57 +97,7 @@ from .generated.models import (
     SendAcecfRequest,
     UpsertCompanyRequest,
 )
-from .generated.api.ecf import (
-    anulacion_rangos,
-    firmar_semilla,
-    get_ecf_by_id,
-    list_anulaciones,
-    query_ecf,
-    recepcion_ecf_31,
-    recepcion_ecf_32,
-    recepcion_ecf_33,
-    recepcion_ecf_34,
-    recepcion_ecf_41,
-    recepcion_ecf_43,
-    recepcion_ecf_44,
-    recepcion_ecf_45,
-    recepcion_ecf_46,
-    recepcion_ecf_47,
-    search_all_ecfs,
-    search_ecfs,
-)
-from .generated.api.company import (
-    delete_company,
-    get_companies,
-    get_company_by_rnc,
-    get_current_certificate,
-    update_certificate_company,
-    upsert_company,
-)
-from .generated.api.dgii import (
-    consulta_directorio_listado,
-    consulta_directorio_obtener_directorio_por_rnc,
-    consulta_estado,
-    consulta_resultado,
-    consulta_rfce,
-    consulta_timbre,
-    consulta_timbre_fc,
-    consulta_track_id,
-    estatus_servicios_obtener_estatus,
-    estatus_servicios_obtener_ventanas_mantenimiento,
-)
-from .generated.api.recepcion import (
-    get_ecf_reception_request,
-    get_ecf_receptor_by_message_id,
-    search_ecf_reception_requests,
-    search_ecf_reception_requests_by_rnc,
-    send_aprobacion_comercial,
-)
-from .generated.api.aprobacion_comercial import (
-    get_acecf_reception_request,
-    search_acecf_reception_requests,
-)
-from .generated.api.api_key import new_company_api_key
+from .generated.types import UNSET
 from .polling import PollingOptions, poll_until_complete
 
 Environment = Literal["test", "cert", "prod"]
@@ -116,6 +116,50 @@ def _parse_or_raise(response: Any) -> Any:
     if response.parsed is None and response.status_code.value >= 400:
         raise_for_status(response.status_code.value, response.content.decode(errors="ignore"))
     return response.parsed
+
+
+def _get_nested(obj: Any, *keys: str) -> Any:
+    """Helper to get nested attribute or dict key case-insensitively/snake-camel-agnostically."""
+    def normalize(s: str) -> str:
+        return s.lower().replace("_", "")
+
+    curr = obj
+    for key in keys:
+        if curr is None:
+            return None
+        norm_key = normalize(key)
+
+        if isinstance(curr, dict):
+            found = False
+            if key in curr:
+                curr = curr[key]
+                found = True
+            else:
+                for k, v in curr.items():
+                    if normalize(k) == norm_key:
+                        curr = v
+                        found = True
+                        break
+            if not found:
+                return None
+        else:
+            found = False
+            if hasattr(curr, key):
+                curr = getattr(curr, key)
+                if hasattr(curr, "value"):
+                    curr = curr.value
+                found = True
+            else:
+                for attr in dir(curr):
+                    if normalize(attr) == norm_key:
+                        curr = getattr(curr, attr)
+                        if hasattr(curr, "value"):
+                            curr = curr.value
+                        found = True
+                        break
+            if not found:
+                return None
+    return curr
 
 
 class EcfClient:
