@@ -61,6 +61,7 @@ from .generated.api.recepcion import (
     send_aprobacion_comercial,
 )
 from .generated.client import AuthenticatedClient
+from io import BytesIO
 from .generated.models import (
     AllTipoECFTypes,
     AnulacionRequest,
@@ -85,9 +86,10 @@ from .generated.models import (
     RespuestaEstatusServicio,
     RespuestaVentanaDeMantenimiento,
     SendAcecfRequest,
+    UpdateCertificateCompanyBody,
     UpsertCompanyRequest,
 )
-from .generated.types import UNSET
+from .generated.types import UNSET, File
 from .polling import PollingOptions, poll_until_complete
 
 Environment = Literal["test", "cert", "prod"]
@@ -414,7 +416,7 @@ class EcfClient:
     # Aprobación Comercial (ACECF)
     # ------------------------------------------------------------------
 
-    async def send_aprobacion_comercial(
+    async def aprobacion_comercial(
         self,
         message_id: str | UUID,
         body: SendAcecfRequest,
@@ -433,9 +435,17 @@ class EcfClient:
     async def firmar_semilla(
         self,
         rnc: str,
-        body: FirmarSemillaBody,
+        *,
+        xml: bytes,
     ) -> Any:
         """Sign a seed for DGII."""
+        body = FirmarSemillaBody(
+            xml=File(
+                payload=BytesIO(xml),
+                file_name="seed.xml",
+                mime_type="application/octet-stream",
+            )
+        )
         response = await firmar_semilla.asyncio_detailed(
             rnc=rnc, client=self._client, body=body,
         )
@@ -486,15 +496,29 @@ class EcfClient:
         if response.status_code.value >= 400:
             _parse_or_raise(response)
 
-    async def get_current_certificate(self, rnc: str) -> Any:
+    async def get_certificate(self, rnc: str) -> Any:
         """Get current certificate for a company."""
         response = await get_current_certificate.asyncio_detailed(
             rnc=rnc, client=self._client,
         )
         return _parse_or_raise(response)
 
-    async def update_certificate_company(self, rnc: str, body: Any) -> None:
+    async def update_certificate(
+        self,
+        rnc: str,
+        *,
+        certificate: bytes,
+        password: str,
+    ) -> None:
         """Update company certificate."""
+        body = UpdateCertificateCompanyBody(
+            certificate=File(
+                payload=BytesIO(certificate),
+                file_name="certificate.p12",
+                mime_type="application/octet-stream",
+            ),
+            password=password,
+        )
         response = await update_certificate_company.asyncio_detailed(
             rnc=rnc, client=self._client, body=body,
         )
@@ -505,7 +529,7 @@ class EcfClient:
     # API Key operations
     # ------------------------------------------------------------------
 
-    async def new_company_api_key(self, body: NewCompanyApiKey) -> Any:
+    async def create_api_key(self, body: NewCompanyApiKey) -> Any:
         """Create a new API key for a company."""
         response = await new_company_api_key.asyncio_detailed(
             client=self._client, body=body,
@@ -616,7 +640,7 @@ class EcfClient:
         )
         return _parse_or_raise(response)
 
-    async def consulta_directorio(self, rnc: str) -> Any:
+    async def consulta_directorio_listado(self, rnc: str) -> Any:
         """Query directory listing."""
         response = await consulta_directorio_listado.asyncio_detailed(
             rnc=rnc, client=self._client,
@@ -637,7 +661,7 @@ class EcfClient:
         )
         return _parse_or_raise(response)
 
-    async def estatus_servicio(self, rnc: str) -> list[RespuestaEstatusServicio]:
+    async def estatus_servicios(self, rnc: str) -> list[RespuestaEstatusServicio]:
         """Get DGII service status."""
         response = await estatus_servicios_obtener_estatus.asyncio_detailed(
             rnc=rnc, client=self._client,
@@ -655,15 +679,7 @@ class EcfClient:
     # Recepción operations
     # ------------------------------------------------------------------
 
-    async def get_ecf_reception_request(self, message_id: str | UUID) -> Any:
-        """Get ECF reception request by message id (``GET /recepcion/{messageId}``)."""
-        mid = message_id if isinstance(message_id, UUID) else UUID(str(message_id))
-        response = await get_ecf_reception_request.asyncio_detailed(
-            message_id=mid, client=self._client,
-        )
-        return _parse_or_raise(response)
-
-    async def get_ecf_receptor_by_message_id(
+    async def get_ecf_reception_request(
         self,
         rnc: str,
         message_id: str | UUID,
