@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine, TypeVar
+from typing import Any, TypeVar
 
 from .exceptions import PollingMaxRetriesError, PollingTimeoutError
 

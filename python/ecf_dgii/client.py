@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from io import BytesIO
 from typing import Any, Literal
 from uuid import UUID
 
@@ -54,14 +55,12 @@ from .generated.api.ecf import (
     search_ecfs,
 )
 from .generated.api.recepcion import (
-    get_ecf_reception_request,
     get_ecf_receptor_by_message_id,
     search_ecf_reception_requests,
     search_ecf_reception_requests_by_rnc,
     send_aprobacion_comercial,
 )
 from .generated.client import AuthenticatedClient
-from io import BytesIO
 from .generated.models import (
     AllTipoECFTypes,
     AnulacionRequest,
