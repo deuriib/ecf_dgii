@@ -6,27 +6,27 @@ import base64
 import logging
 import os
 import warnings
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence
+from typing import Any
 from uuid import UUID
 
 import httpx
 
 from .client import ENVIRONMENT_URLS, Environment
 from .exceptions import raise_for_status
+from .generated.api.company import get_companies, get_company_by_rnc
+from .generated.api.ecf import get_ecf_by_id, query_ecf, search_all_ecfs, search_ecfs
 from .generated.client import AuthenticatedClient
-from .generated.types import UNSET
 from .generated.models import (
     AllTipoECFTypes,
     CompanyResponse,
-    EcfProgress,
     EcfResponse,
     PaginatedApiResultOfCompanyResponse,
     PaginatedApiResultOfEcfResponse,
     ProblemDetails,
 )
-from .generated.api.ecf import query_ecf, search_ecfs, search_all_ecfs, get_ecf_by_id
-from .generated.api.company import get_companies, get_company_by_rnc
+from .generated.types import UNSET
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ try:
         _TOKEN_FILE.write_bytes(encrypted)
         _TOKEN_FILE.chmod(0o600)
 
-    def _default_get_cached_token() -> Optional[str]:
+    def _default_get_cached_token() -> str | None:
         """Read and decrypt token from disk using Fernet."""
         if not _TOKEN_FILE.exists() or not _KEY_FILE.exists():
             return None
@@ -93,7 +93,7 @@ except ImportError:
         _TOKEN_FILE.write_bytes(encoded)
         _TOKEN_FILE.chmod(0o600)
 
-    def _default_get_cached_token() -> Optional[str]:  # type: ignore[misc]
+    def _default_get_cached_token() -> str | None:  # type: ignore[misc]
         """Read token from disk using base64 decoding (no encryption)."""
         if not _TOKEN_FILE.exists():
             return None
@@ -145,8 +145,8 @@ class EcfFrontendClient:
         self,
         *,
         get_token: Callable[[], str],
-        cache_token: Optional[Callable[[str], None]] = None,
-        get_cached_token: Optional[Callable[[], Optional[str]]] = None,
+        cache_token: Callable[[str], None] | None = None,
+        get_cached_token: Callable[[], str | None] | None = None,
         base_url: str | None = None,
         environment: Environment = "test",
         timeout: float = 30.0,
@@ -317,8 +317,8 @@ class EcfFrontendClient:
 def create_frontend_client(
     *,
     get_token: Callable[[], str],
-    cache_token: Optional[Callable[[str], None]] = None,
-    get_cached_token: Optional[Callable[[], Optional[str]]] = None,
+    cache_token: Callable[[str], None] | None = None,
+    get_cached_token: Callable[[], str | None] | None = None,
     base_url: str | None = None,
     environment: Environment = "test",
     timeout: float = 30.0,
