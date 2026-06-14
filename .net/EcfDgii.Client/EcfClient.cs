@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EcfDgii.Client.Generated;
 using EcfDgii.Client.Generated.Models;
+using EcfDgii.Client.Generated.Company.Item.Certificate;
+using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Http.HttpClientLibrary;
 
 namespace EcfDgii.Client
@@ -71,18 +74,18 @@ namespace EcfDgii.Client
         // ECF send + poll — Generic implementation with automatic routing
         // ---------------------------------------------------------------------------
 
-        private static readonly Dictionary<string, string> RouteMap = new Dictionary<string, string>
+        private static readonly Dictionary<TipoeCFType, string> RouteMap = new Dictionary<TipoeCFType, string>
         {
-            ["FacturaDeCreditoFiscalElectronica"] = "31",
-            ["FacturaDeConsumoElectronica"] = "32",
-            ["NotaDeDebitoElectronica"] = "33",
-            ["NotaDeCreditoElectronica"] = "34",
-            ["ComprasElectronico"] = "41",
-            ["GastosMenoresElectronico"] = "43",
-            ["RegimenesEspecialesElectronico"] = "44",
-            ["GubernamentalElectronico"] = "45",
-            ["ComprobanteDeExportacionesElectronico"] = "46",
-            ["ComprobanteParaPagosAlExteriorElectronico"] = "47",
+            [TipoeCFType.FacturaDeCreditoFiscalElectronica] = "31",
+            [TipoeCFType.FacturaDeConsumoElectronica] = "32",
+            [TipoeCFType.NotaDeDebitoElectronica] = "33",
+            [TipoeCFType.NotaDeCreditoElectronica] = "34",
+            [TipoeCFType.ComprasElectronico] = "41",
+            [TipoeCFType.GastosMenoresElectronico] = "43",
+            [TipoeCFType.RegimenesEspecialesElectronico] = "44",
+            [TipoeCFType.GubernamentalElectronico] = "45",
+            [TipoeCFType.ComprobanteDeExportacionesElectronico] = "46",
+            [TipoeCFType.ComprobanteParaPagosAlExteriorElectronico] = "47",
         };
 
         /// <summary>
@@ -100,7 +103,7 @@ namespace EcfDgii.Client
             var doc = (IEcfDocument)ecf;
             var tipoeCF = doc.TipoeCF;
 
-            if (string.IsNullOrEmpty(tipoeCF) || !RouteMap.TryGetValue(tipoeCF, out var route))
+            if (tipoeCF == null || !RouteMap.TryGetValue(tipoeCF.Value, out var route))
             {
                 throw new ArgumentException($"Unknown or missing TipoeCF: {tipoeCF}. Ensure Encabezado.IdDoc.TipoeCF is set correctly.");
             }
@@ -199,7 +202,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Create or update a company.</summary>
-        public Task<CompanyResponse?> UpsertCompanyAsync(UpsertCompanyRequest body, CancellationToken ct = default)
+        public Task UpsertCompanyAsync(UpsertCompanyRequest body, CancellationToken ct = default)
         {
             return Api.Company.PutAsync(body, cancellationToken: ct);
         }
@@ -215,19 +218,23 @@ namespace EcfDgii.Client
         // ---------------------------------------------------------------------------
 
         /// <summary>Get the current certificate for a company.</summary>
-        public Task<CertificateResponse?> GetCertificateAsync(string rnc, CancellationToken ct = default)
+        public Task<List<CertificateResponse>?> GetCertificateAsync(string rnc, CancellationToken ct = default)
         {
             return Api.Company[rnc].Certificate.GetAsync(cancellationToken: ct);
         }
 
         /// <summary>Update a company's certificate.</summary>
-        public Task<CertificateResponse?> UpdateCertificateAsync(string rnc, Stream certificate, string password, CancellationToken ct = default)
+        public async Task<Stream?> UpdateCertificateAsync(string rnc, Stream certificate, string password, CancellationToken ct = default)
         {
-            var body = new MultipartBody();
-            body.AddOrReplacePart("certificate", "application/octet-stream", certificate, "certificate.p12");
-            body.AddOrReplacePart("password", "text/plain", password);
+            using var ms = new MemoryStream();
+            await certificate.CopyToAsync(ms, 8192, ct).ConfigureAwait(false);
+            var body = new CertificatePutRequestBody
+            {
+                Certificate = ms.ToArray(),
+                Password = password
+            };
 
-            return Api.Company[rnc].Certificate.PutAsync(body, cancellationToken: ct);
+            return await Api.Company[rnc].Certificate.PutAsync(body, cancellationToken: ct).ConfigureAwait(false);
         }
 
         // ---------------------------------------------------------------------------
@@ -247,7 +254,7 @@ namespace EcfDgii.Client
         public Task<PaginatedApiResultOfEcfResponse?> SearchEcfsAsync(
             string rnc,
             string[]? encfs = null,
-            string[]? ids = null,
+            Guid?[]? ids = null,
             AllTipoECFTypes[]? tiposEcfs = null,
             bool? includeEcfContent = null,
             DateTimeOffset? fromFechaEmision = null,
@@ -262,7 +269,7 @@ namespace EcfDgii.Client
             {
                 config.QueryParameters.Encfs = encfs;
                 config.QueryParameters.Ids = ids;
-                config.QueryParameters.TiposEcfs = tiposEcfs;
+                config.QueryParameters.TiposEcfsAsAllTipoECFTypes = tiposEcfs;
                 config.QueryParameters.IncludeEcfContent = includeEcfContent;
                 config.QueryParameters.FromFechaEmision = fromFechaEmision;
                 config.QueryParameters.ToFechaEmision = toFechaEmision;
@@ -276,7 +283,7 @@ namespace EcfDgii.Client
         /// <summary>Search all ECFs across all companies.</summary>
         public Task<PaginatedApiResultOfEcfResponse?> SearchAllEcfsAsync(
             string[]? encfs = null,
-            string[]? ids = null,
+            Guid?[]? ids = null,
             AllTipoECFTypes[]? tiposEcfs = null,
             bool? includeEcfContent = null,
             DateTimeOffset? fromFechaEmision = null,
@@ -291,7 +298,7 @@ namespace EcfDgii.Client
             {
                 config.QueryParameters.Encfs = encfs;
                 config.QueryParameters.Ids = ids;
-                config.QueryParameters.TiposEcfs = tiposEcfs;
+                config.QueryParameters.TiposEcfsAsAllTipoECFTypes = tiposEcfs;
                 config.QueryParameters.IncludeEcfContent = includeEcfContent;
                 config.QueryParameters.FromFechaEmision = fromFechaEmision;
                 config.QueryParameters.ToFechaEmision = toFechaEmision;
@@ -316,13 +323,13 @@ namespace EcfDgii.Client
         // ---------------------------------------------------------------------------
 
         /// <summary>Request range annulment.</summary>
-        public Task<EcfResponse?> AnulacionRangosAsync(string rnc, AnulacionRequest body, CancellationToken ct = default)
+        public Task<RespuestaAnulacionRango?> AnulacionRangosAsync(string rnc, AnulacionRequest body, CancellationToken ct = default)
         {
             return Api.Ecf.Anularrango[rnc].PostAsync(body, cancellationToken: ct);
         }
 
         /// <summary>List annulments.</summary>
-        public Task<PaginatedApiResultOfAnulacionResponse?> ListAnulacionesAsync(
+        public Task<PaginatedApiResultOfAnulacionListResponse?> ListAnulacionesAsync(
             ECFType[]? tipoEcf = null,
             string[]? rncs = null,
             DateTimeOffset? fechaDesde = null,
@@ -333,7 +340,7 @@ namespace EcfDgii.Client
         {
             return Api.Ecf.Anulaciones.GetAsync(config =>
             {
-                config.QueryParameters.TipoEcf = tipoEcf;
+                config.QueryParameters.TipoEcfAsECFType = tipoEcf;
                 config.QueryParameters.Rncs = rncs;
                 config.QueryParameters.FechaDesde = fechaDesde;
                 config.QueryParameters.FechaHasta = fechaHasta;
@@ -359,8 +366,8 @@ namespace EcfDgii.Client
         // ---------------------------------------------------------------------------
 
         /// <summary>Search ECF reception requests.</summary>
-        public Task<PaginatedApiResultOfEcfReceptionResponse?> SearchEcfReceptionRequestsAsync(
-            string[]? messageIds = null,
+        public Task<PaginatedApiResultOfEcfReceptionRequestDto?> SearchEcfReceptionRequestsAsync(
+            Guid?[]? messageIds = null,
             string[]? encfs = null,
             string[]? rncs = null,
             string? page = null,
@@ -378,56 +385,63 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Search ACECF reception requests.</summary>
-        public Task<PaginatedApiResultOfAcecfReceptionResponse?> SearchAcecfReceptionRequestsAsync(
-            string[]? messageIds = null,
+        public Task<PaginatedApiResultOfAcecfReceptionRequestDto?> SearchAcecfReceptionRequestsAsync(
             string[]? encfs = null,
-            string[]? rncs = null,
+            Guid?[]? messageIds = null,
             string? page = null,
             string? limit = null,
+            string[]? rncs = null,
             CancellationToken ct = default)
         {
+#pragma warning disable CS0618
             return Api.Recepcion.Acecf.GetAsync(config =>
             {
-                config.QueryParameters.MessageIds = messageIds;
                 config.QueryParameters.Encfs = encfs;
-                config.QueryParameters.Rncs = rncs;
+                config.QueryParameters.MessageIds = messageIds;
                 config.QueryParameters.Page = page;
                 config.QueryParameters.Limit = limit;
+                config.QueryParameters.Rncs = rncs;
             }, ct);
+#pragma warning restore CS0618
         }
 
         /// <summary>Search ECF reception requests by RNC.</summary>
-        public Task<PaginatedApiResultOfEcfReceptionResponse?> SearchEcfReceptionRequestsByRncAsync(
+        public Task<PaginatedApiResultOfEcfReceptionRequestDto?> SearchEcfReceptionRequestsByRncAsync(
             string rnc,
-            string[]? messageIds = null,
+            Guid?[]? messageIds = null,
             string[]? encfs = null,
             string? page = null,
             string? limit = null,
             CancellationToken ct = default)
         {
-            return Api.Recepcion[rnc].GetAsync(config =>
+#pragma warning disable CS0618
+            return Api.Recepcion.GetAsync(config =>
             {
+                config.QueryParameters.Rncs = new[] { rnc };
                 config.QueryParameters.MessageIds = messageIds;
                 config.QueryParameters.Encfs = encfs;
                 config.QueryParameters.Page = page;
                 config.QueryParameters.Limit = limit;
             }, ct);
+#pragma warning restore CS0618
         }
 
         /// <summary>Get a specific ECF reception request by RNC and messageId.</summary>
-        public Task<EcfReceptionResponse?> GetEcfReceptionRequestAsync(string rnc, string messageId, CancellationToken ct = default)
+        public Task<EcfReceptorDto?> GetEcfReceptionRequestAsync(string rnc, Guid messageId, CancellationToken ct = default)
         {
-            return Api.Recepcion[rnc][messageId].GetAsync(cancellationToken: ct);
+#pragma warning disable CS0618
+            return Api.Recepcion[messageId][rnc].GetAsync(cancellationToken: ct);
+#pragma warning restore CS0618
         }
 
         /// <summary>Get a specific ACECF reception request by messageId.</summary>
-        public Task<AcecfReceptionResponse?> GetAcecfReceptionRequestAsync(string messageId, CancellationToken ct = default)
+        public Task<Stream?> GetAcecfReceptionRequestAsync(Guid messageId, CancellationToken ct = default)
         {
             return Api.Recepcion.Acecf[messageId].GetAsync(cancellationToken: ct);
         }
 
         /// <summary>Send aprobacion comercial (ACECF) for a given ECF reception messageId.</summary>
-        public Task<EcfResponse?> AprobacionComercialAsync(string messageId, SendAcecfRequest body, CancellationToken ct = default)
+        public Task<Stream?> AprobacionComercialAsync(Guid messageId, SendAcecfRequest body, CancellationToken ct = default)
         {
             return Api.Recepcion[messageId].Acecf.PostAsync(body, cancellationToken: ct);
         }
@@ -437,13 +451,13 @@ namespace EcfDgii.Client
         // ---------------------------------------------------------------------------
 
         /// <summary>Consulta directorio - listado.</summary>
-        public Task<Stream?> ConsultaDirectorioListadoAsync(string rnc, CancellationToken ct = default)
+        public Task<List<Directorio>?> ConsultaDirectorioListadoAsync(string rnc, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Consultadirectorio.Listado.GetAsync(cancellationToken: ct);
         }
 
         /// <summary>Consulta directorio - obtener directorio por RNC.</summary>
-        public Task<Stream?> ConsultaDirectorioPorRncAsync(string rnc, string queryRnc, CancellationToken ct = default)
+        public Task<Directorio?> ConsultaDirectorioPorRncAsync(string rnc, string queryRnc, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Consultadirectorio.ObtenerDirectorioPorRnc.GetAsync(config =>
             {
@@ -452,7 +466,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Consulta estado.</summary>
-        public Task<Stream?> ConsultaEstadoAsync(
+        public Task<RespuestaConsultaEstado?> ConsultaEstadoAsync(
             string rnc,
             string rncEmisor,
             string ncfElectronico,
@@ -470,7 +484,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Consulta resultado.</summary>
-        public Task<Stream?> ConsultaResultadoAsync(string rnc, string trackId, CancellationToken ct = default)
+        public Task<RespuestaConsultaTrackId?> ConsultaResultadoAsync(string rnc, string trackId, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Consultaresultado.Estado.GetAsync(config =>
             {
@@ -479,7 +493,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Consulta RFCE.</summary>
-        public Task<Stream?> ConsultaRFCEAsync(
+        public Task<RespuestaConsultaRFCE?> ConsultaRFCEAsync(
             string rnc,
             string rncEmisor,
             string encf,
@@ -488,14 +502,14 @@ namespace EcfDgii.Client
         {
             return Api.Dgii[rnc].Consultarfce.Consulta.GetAsync(config =>
             {
-                config.QueryParameters.RNC_Emisor = rncEmisor;
+                config.QueryParameters.RNCEmisor = rncEmisor;
                 config.QueryParameters.ENCF = encf;
-                config.QueryParameters.Cod_Seguridad_eCF = codSeguridadECF;
+                config.QueryParameters.CodSeguridadECF = codSeguridadECF;
             }, ct);
         }
 
         /// <summary>Consulta timbre.</summary>
-        public Task<Stream?> ConsultaTimbreAsync(
+        public Task<RespuestaConsultaTimbre?> ConsultaTimbreAsync(
             string rnc,
             string rncemisor,
             string encf,
@@ -513,7 +527,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Consulta timbre FC.</summary>
-        public Task<Stream?> ConsultaTimbreFCAsync(
+        public Task<RespuestaConsultaTimbre?> ConsultaTimbreFCAsync(
             string rnc,
             string rncemisor,
             string encf,
@@ -531,7 +545,7 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Consulta track IDs.</summary>
-        public Task<Stream?> ConsultaTrackIdAsync(string rnc, string rncEmisor, string encf, CancellationToken ct = default)
+        public Task<RespuestaConsultaTrackId?> ConsultaTrackIdAsync(string rnc, string rncEmisor, string encf, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Consultatrackids.Consulta.GetAsync(config =>
             {
@@ -541,13 +555,13 @@ namespace EcfDgii.Client
         }
 
         /// <summary>Estatus servicios - obtener estatus.</summary>
-        public Task<Stream?> EstatusServiciosAsync(string rnc, CancellationToken ct = default)
+        public Task<List<RespuestaEstatusServicio>?> EstatusServiciosAsync(string rnc, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Estatusservicios.ObtenerEstatus.GetAsync(cancellationToken: ct);
         }
 
         /// <summary>Estatus servicios - obtener ventanas de mantenimiento.</summary>
-        public Task<Stream?> VentanasMantenimientoAsync(string rnc, CancellationToken ct = default)
+        public Task<RespuestaVentanaDeMantenimiento?> VentanasMantenimientoAsync(string rnc, CancellationToken ct = default)
         {
             return Api.Dgii[rnc].Estatusservicios.ObtenerVentanasMantenimiento.GetAsync(cancellationToken: ct);
         }
@@ -557,7 +571,7 @@ namespace EcfDgii.Client
         // ---------------------------------------------------------------------------
 
         /// <summary>Create a new API key.</summary>
-        public Task<NewCompanyApiKeyResponse?> CreateApiKeyAsync(NewCompanyApiKey body, CancellationToken ct = default)
+        public Task<Token?> CreateApiKeyAsync(NewCompanyApiKey body, CancellationToken ct = default)
         {
             return Api.ApiKey.PostAsync(body, cancellationToken: ct);
         }

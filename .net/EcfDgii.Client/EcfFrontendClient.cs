@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EcfDgii.Client.Generated;
 using EcfDgii.Client.Generated.Models;
-using Microsoft.Extensions.Caching.Abstractions;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Kiota.Abstractions.Authentication;
 using Microsoft.Kiota.Http.HttpClientLibrary;
 
@@ -110,7 +110,7 @@ namespace EcfDgii.Client
         public Task<PaginatedApiResultOfEcfResponse?> SearchEcfsAsync(
             string rnc,
             string[]? encfs = null,
-            string[]? ids = null,
+            Guid?[]? ids = null,
             AllTipoECFTypes[]? tiposEcfs = null,
             bool? includeEcfContent = null,
             DateTimeOffset? fromFechaEmision = null,
@@ -126,7 +126,7 @@ namespace EcfDgii.Client
                 {
                     config.QueryParameters.Encfs = encfs;
                     config.QueryParameters.Ids = ids;
-                    config.QueryParameters.TiposEcfs = tiposEcfs;
+                    config.QueryParameters.TiposEcfsAsAllTipoECFTypes = tiposEcfs;
                     config.QueryParameters.IncludeEcfContent = includeEcfContent;
                     config.QueryParameters.FromFechaEmision = fromFechaEmision;
                     config.QueryParameters.ToFechaEmision = toFechaEmision;
@@ -144,7 +144,7 @@ namespace EcfDgii.Client
         /// </summary>
         public Task<PaginatedApiResultOfEcfResponse?> SearchAllEcfsAsync(
             string[]? encfs = null,
-            string[]? ids = null,
+            Guid?[]? ids = null,
             AllTipoECFTypes[]? tiposEcfs = null,
             bool? includeEcfContent = null,
             DateTimeOffset? fromFechaEmision = null,
@@ -160,7 +160,7 @@ namespace EcfDgii.Client
                 {
                     config.QueryParameters.Encfs = encfs;
                     config.QueryParameters.Ids = ids;
-                    config.QueryParameters.TiposEcfs = tiposEcfs;
+                    config.QueryParameters.TiposEcfsAsAllTipoECFTypes = tiposEcfs;
                     config.QueryParameters.IncludeEcfContent = includeEcfContent;
                     config.QueryParameters.FromFechaEmision = fromFechaEmision;
                     config.QueryParameters.ToFechaEmision = toFechaEmision;
