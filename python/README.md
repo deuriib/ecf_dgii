@@ -97,8 +97,8 @@ async def main():
             ],
         )
 
-        result = await client.send_ecf31(ecf)
-        print(f"ECF aceptado: {result.encf} - Estatus: {result.estatus}")
+        result = await client.send_ecf(ecf)
+        print(f"ECF enviado: {result.encf} - Progress: {result.progress}")
 
 asyncio.run(main())
 ```
@@ -332,12 +332,15 @@ await client.delete_company("123456789")
 ### Gestión de certificados
 
 ```python
-# Obtener certificados
-certs = await client.get_current_certificate("123456789")
+# Obtener certificado
+cert = await client.get_certificate("123456789")
 
 # Subir certificado
-from ecf_dgii import UpsertCompanyRequest
-await client.update_certificate_company("123456789", ...)
+await client.update_certificate(
+    "123456789",
+    certificate=open("cert.p12", "rb").read(),
+    password="mi-password",
+)
 ```
 
 ### Consultar ECFs
@@ -362,9 +365,9 @@ page = await client.search_ecfs(
 ```python
 from ecf_dgii import SendAcecfRequest, EstadoType
 from uuid import uuid4
-await client.send_aprobacion_comercial(
+await client.aprobacion_comercial(
     uuid4(),
-    SendAcecfRequest(estadoType=EstadoType.ECF_ACEPTADO),
+    SendAcecfRequest(estado_type=EstadoType.ECF_ACEPTADO),
 )
 ```
 
@@ -392,7 +395,7 @@ result = await client.anulacion_rangos(
 
 ```python
 # Directorio
-entries = await client.consulta_directorio("123456789")
+entries = await client.consulta_directorio_listado("123456789")
 
 # Estado
 estado = await client.consulta_estado(
@@ -404,7 +407,7 @@ estado = await client.consulta_estado(
 )
 
 # Estatus servicios
-servicios = await client.estatus_servicio("123456789")
+servicios = await client.estatus_servicios("123456789")
 ```
 
 ## Manejo de errores
@@ -419,13 +422,13 @@ from ecf_dgii import (
 )
 
 try:
-    result = await client.send_ecf31(ecf)
+    result = await client.send_ecf(ecf)
 except EcfValidationError as e:
     print(f"Solicitud inválida: {e.detail}")
 except EcfAuthenticationError:
     print("API key inválido")
 except EcfProcessingError as e:
-    print(f"DGII rechazó: {e.response.errors}")
+    print(f"DGII rechazó: {e.message}")
 except PollingTimeoutError:
     print("El procesamiento tomó demasiado tiempo")
 except EcfApiError as e:
