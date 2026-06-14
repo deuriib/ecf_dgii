@@ -206,9 +206,7 @@ class EcfFrontendClient:
     # ECF query operations
     # ======================================================================
 
-    async def query_ecf(
-        self, rnc: str, encf: str, *, include_ecf_content: bool = False
-    ) -> list[EcfResponse]:
+    async def query_ecf(self, rnc: str, encf: str, *, include_ecf_content: bool = False) -> list[EcfResponse]:
         """Query ECFs by RNC and eNCF."""
         return await self._get_with_retry(  # type: ignore[no-any-return]
             query_ecf.asyncio_detailed,

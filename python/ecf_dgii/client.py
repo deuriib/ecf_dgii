@@ -124,6 +124,7 @@ def _parse_or_raise(response: Any) -> Any:
 
 def _get_nested(obj: Any, *keys: str) -> Any:
     """Helper to get nested attribute or dict key case-insensitively/snake-camel-agnostically."""
+
     def normalize(s: str) -> str:
         return s.lower().replace("_", "")
 
@@ -385,7 +386,9 @@ class EcfClient:
     ) -> RespuestaAnulacionRango:
         """Request range annulment."""
         response = await anulacion_rangos.asyncio_detailed(
-            rnc=rnc, client=self._client, body=request,
+            rnc=rnc,
+            client=self._client,
+            body=request,
         )
         return _parse_or_raise(response)  # type: ignore[no-any-return]
 
@@ -427,7 +430,9 @@ class EcfClient:
         """
         mid = message_id if isinstance(message_id, UUID) else UUID(str(message_id))
         response = await send_aprobacion_comercial.asyncio_detailed(
-            message_id=mid, client=self._client, body=body,
+            message_id=mid,
+            client=self._client,
+            body=body,
         )
         return _parse_or_raise(response)
 
@@ -446,7 +451,9 @@ class EcfClient:
             )
         )
         response = await firmar_semilla.asyncio_detailed(
-            rnc=rnc, client=self._client, body=body,
+            rnc=rnc,
+            client=self._client,
+            body=body,
         )
         return _parse_or_raise(response)
 
@@ -475,14 +482,16 @@ class EcfClient:
     async def get_company_by_rnc(self, rnc: str) -> CompanyResponse:
         """Get a company by RNC."""
         response = await get_company_by_rnc.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         return _parse_or_raise(response)  # type: ignore[no-any-return]
 
     async def upsert_company(self, request: UpsertCompanyRequest) -> None:
         """Create or update a company."""
         response = await upsert_company.asyncio_detailed(
-            client=self._client, body=request,
+            client=self._client,
+            body=request,
         )
         if response.status_code.value >= 400:
             _parse_or_raise(response)
@@ -490,7 +499,8 @@ class EcfClient:
     async def delete_company(self, rnc: str) -> None:
         """Delete a company."""
         response = await delete_company.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         if response.status_code.value >= 400:
             _parse_or_raise(response)
@@ -498,7 +508,8 @@ class EcfClient:
     async def get_certificate(self, rnc: str) -> Any:
         """Get current certificate for a company."""
         response = await get_current_certificate.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         return _parse_or_raise(response)
 
@@ -519,7 +530,9 @@ class EcfClient:
             password=password,
         )
         response = await update_certificate_company.asyncio_detailed(
-            rnc=rnc, client=self._client, body=body,
+            rnc=rnc,
+            client=self._client,
+            body=body,
         )
         if response.status_code.value >= 400:
             _parse_or_raise(response)
@@ -531,7 +544,8 @@ class EcfClient:
     async def create_api_key(self, body: NewCompanyApiKey) -> Any:
         """Create a new API key for a company."""
         response = await new_company_api_key.asyncio_detailed(
-            client=self._client, body=body,
+            client=self._client,
+            body=body,
         )
         return _parse_or_raise(response)
 
@@ -650,7 +664,8 @@ class EcfClient:
     async def consulta_directorio_listado(self, rnc: str) -> Any:
         """Query directory listing."""
         response = await consulta_directorio_listado.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         return _parse_or_raise(response)
 
@@ -671,14 +686,16 @@ class EcfClient:
     async def estatus_servicios(self, rnc: str) -> list[RespuestaEstatusServicio]:
         """Get DGII service status."""
         response = await estatus_servicios_obtener_estatus.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         return _parse_or_raise(response)  # type: ignore[no-any-return]
 
     async def ventanas_mantenimiento(self, rnc: str) -> RespuestaVentanaDeMantenimiento:
         """Get DGII maintenance windows."""
         response = await estatus_servicios_obtener_ventanas_mantenimiento.asyncio_detailed(
-            rnc=rnc, client=self._client,
+            rnc=rnc,
+            client=self._client,
         )
         return _parse_or_raise(response)  # type: ignore[no-any-return]
 
@@ -694,7 +711,9 @@ class EcfClient:
         """Get ECF receptor by RNC and messageId (``GET /recepcion/{rnc}/{messageId}``)."""
         mid = message_id if isinstance(message_id, UUID) else UUID(str(message_id))
         response = await get_ecf_receptor_by_message_id.asyncio_detailed(
-            rnc=rnc, message_id=mid, client=self._client,
+            rnc=rnc,
+            message_id=mid,
+            client=self._client,
         )
         return _parse_or_raise(response)
 
@@ -770,7 +789,8 @@ class EcfClient:
         """Get ACECF reception request (``GET /recepcion/acecf/{messageId}``)."""
         mid = message_id if isinstance(message_id, UUID) else UUID(str(message_id))
         response = await get_acecf_reception_request.asyncio_detailed(
-            message_id=mid, client=self._client,
+            message_id=mid,
+            client=self._client,
         )
         return _parse_or_raise(response)
 
@@ -795,5 +815,3 @@ class EcfClient:
             limit=limit,
         )
         return _parse_or_raise(response)  # type: ignore[no-any-return]
-
-
