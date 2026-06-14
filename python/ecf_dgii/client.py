@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 
-from .exceptions import raise_for_status
+from .exceptions import EcfProcessingError, raise_for_status
 from .generated.api.api_key import new_company_api_key
 from .generated.api.aprobacion_comercial import (
     get_acecf_reception_request,
@@ -65,16 +65,6 @@ from .generated.models import (
     AllTipoECFTypes,
     AnulacionRequest,
     CompanyResponse,
-    Ecf31ECF,
-    Ecf32ECF,
-    Ecf33ECF,
-    Ecf34ECF,
-    Ecf41ECF,
-    Ecf43ECF,
-    Ecf44ECF,
-    Ecf45ECF,
-    Ecf46ECF,
-    Ecf47ECF,
     EcfProgress,
     EcfReceptorDto,
     EcfResponse,
@@ -106,6 +96,19 @@ ENVIRONMENT_URLS: dict[str, str] = {
     "test": "https://api.test.ecfx.ssd.com.do",
     "cert": "https://api.cert.ecfx.ssd.com.do",
     "prod": "https://api.prod.ecfx.ssd.com.do",
+}
+
+ECF_TYPE_ROUTE_MAP: dict[str, Any] = {
+    "FacturaDeCreditoFiscalElectronica": recepcion_ecf_31,
+    "FacturaDeConsumoElectronica": recepcion_ecf_32,
+    "NotaDeDebitoElectronica": recepcion_ecf_33,
+    "NotaDeCreditoElectronica": recepcion_ecf_34,
+    "ComprasElectronico": recepcion_ecf_41,
+    "GastosMenoresElectronico": recepcion_ecf_43,
+    "RegimenesEspecialesElectronico": recepcion_ecf_44,
+    "GubernamentalElectronico": recepcion_ecf_45,
+    "ComprobanteDeExportacionesElectronico": recepcion_ecf_46,
+    "ComprobanteParaPagosAlExteriorElectronico": recepcion_ecf_47,
 }
 
 
@@ -202,58 +205,70 @@ class EcfClient:
         await self._client.__aexit__(None, None, None)
 
     # ------------------------------------------------------------------
-    # ECF send operations (per-type)
+    # ECF send operations
     # ------------------------------------------------------------------
 
-    async def send_ecf31(self, ecf: Ecf31ECF) -> EcfResponse:
-        """Send a Factura de Crédito Fiscal Electrónica (31)."""
-        response = await recepcion_ecf_31.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+    async def send_ecf(
+        self,
+        ecf: Any,
+        polling_options: PollingOptions | None = None,
+    ) -> EcfResponse:
+        """Send any ECF invoice type and poll until processing is complete.
 
-    async def send_ecf32(self, ecf: Ecf32ECF) -> EcfResponse:
-        """Send a Factura de Consumo Electrónica (32)."""
-        response = await recepcion_ecf_32.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        Raises:
+            EcfProcessingError: If the invoice processing fails with an error status.
+        """
+        tipoe_cf = _get_nested(ecf, "encabezado", "id_doc", "tipoe_cf")
+        if not tipoe_cf:
+            raise ValueError("ECF must have encabezado.id_doc.tipoe_cf")
 
-    async def send_ecf33(self, ecf: Ecf33ECF) -> EcfResponse:
-        """Send a Nota de Débito Electrónica (33)."""
-        response = await recepcion_ecf_33.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        if hasattr(tipoe_cf, "value"):
+            tipoe_cf = tipoe_cf.value
+        tipoe_cf_str = str(tipoe_cf)
 
-    async def send_ecf34(self, ecf: Ecf34ECF) -> EcfResponse:
-        """Send a Nota de Crédito Electrónica (34)."""
-        response = await recepcion_ecf_34.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        route_module = ECF_TYPE_ROUTE_MAP.get(tipoe_cf_str)
+        if not route_module:
+            raise ValueError(f"Unknown tipoeCF: {tipoe_cf_str}")
 
-    async def send_ecf41(self, ecf: Ecf41ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico de Compras (41)."""
-        response = await recepcion_ecf_41.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        rnc = _get_nested(ecf, "encabezado", "emisor", "rnc_emisor")
+        if not rnc:
+            raise ValueError("ECF must have encabezado.emisor.rnc_emisor")
+        if hasattr(rnc, "value"):
+            rnc = rnc.value
 
-    async def send_ecf43(self, ecf: Ecf43ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico de Gastos Menores (43)."""
-        response = await recepcion_ecf_43.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        encf = _get_nested(ecf, "encabezado", "id_doc", "encf")
+        if not encf:
+            raise ValueError("ECF must have encabezado.id_doc.encf")
+        if hasattr(encf, "value"):
+            encf = encf.value
 
-    async def send_ecf44(self, ecf: Ecf44ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico de Regímenes Especiales (44)."""
-        response = await recepcion_ecf_44.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        response = await route_module.asyncio_detailed(client=self._client, body=ecf)
+        initial: EcfResponse = _parse_or_raise(response)
 
-    async def send_ecf45(self, ecf: Ecf45ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico Gubernamental (45)."""
-        response = await recepcion_ecf_45.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        async def _poll() -> EcfResponse:
+            results = await self.query_ecf(
+                str(rnc),
+                str(encf),
+                include_ecf_content=False,
+            )
+            if not results:
+                return initial
 
-    async def send_ecf46(self, ecf: Ecf46ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico de Exportaciones (46)."""
-        response = await recepcion_ecf_46.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+            # Find matching response by message ID, fallback to the first result
+            match = next((r for r in results if r.message_id == initial.message_id), None)
+            return match if match is not None else results[0]
 
-    async def send_ecf47(self, ecf: Ecf47ECF) -> EcfResponse:
-        """Send a Comprobante Electrónico de Pagos al Exterior (47)."""
-        response = await recepcion_ecf_47.asyncio_detailed(client=self._client, body=ecf)
-        return _parse_or_raise(response)
+        result = await poll_until_complete(
+            _poll,
+            lambda r: r.progress == EcfProgress.FINISHED or r.progress == EcfProgress.ERROR,
+            polling_options,
+        )
+
+        if result.progress == EcfProgress.ERROR:
+            msg = result.errors or result.mensaje or "ECF processing failed"
+            raise EcfProcessingError(status_code=0, message=msg, detail=result)
+
+        return result
 
     # ------------------------------------------------------------------
     # ECF query operations
@@ -758,74 +773,4 @@ class EcfClient:
         )
         return _parse_or_raise(response)
 
-    # ------------------------------------------------------------------
-    # Polling helpers
-    # ------------------------------------------------------------------
 
-    async def _send_and_poll(
-        self,
-        send_coro: Any,
-        *,
-        polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        initial: EcfResponse = await send_coro
-
-        async def _poll() -> EcfResponse:
-            results = await self.query_ecf(
-                initial.rnc_emisor,
-                initial.encf,
-                include_ecf_content=False,
-            )
-            return results[0] if results else initial
-
-        return await poll_until_complete(_poll, options=polling_options)
-
-    async def send_ecf31_and_poll(
-        self, ecf: Ecf31ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf31(ecf), polling_options=polling_options)
-
-    async def send_ecf32_and_poll(
-        self, ecf: Ecf32ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf32(ecf), polling_options=polling_options)
-
-    async def send_ecf33_and_poll(
-        self, ecf: Ecf33ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf33(ecf), polling_options=polling_options)
-
-    async def send_ecf34_and_poll(
-        self, ecf: Ecf34ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf34(ecf), polling_options=polling_options)
-
-    async def send_ecf41_and_poll(
-        self, ecf: Ecf41ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf41(ecf), polling_options=polling_options)
-
-    async def send_ecf43_and_poll(
-        self, ecf: Ecf43ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf43(ecf), polling_options=polling_options)
-
-    async def send_ecf44_and_poll(
-        self, ecf: Ecf44ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf44(ecf), polling_options=polling_options)
-
-    async def send_ecf45_and_poll(
-        self, ecf: Ecf45ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf45(ecf), polling_options=polling_options)
-
-    async def send_ecf46_and_poll(
-        self, ecf: Ecf46ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf46(ecf), polling_options=polling_options)
-
-    async def send_ecf47_and_poll(
-        self, ecf: Ecf47ECF, *, polling_options: PollingOptions | None = None,
-    ) -> EcfResponse:
-        return await self._send_and_poll(self.send_ecf47(ecf), polling_options=polling_options)
